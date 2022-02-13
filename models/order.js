@@ -8,7 +8,15 @@ const itemSchema = new Schema(
       required: true
     },
     price: {
-      type: mongoose.Decimal128,
+      type: String,
+      required: true
+    },
+    quantity: {
+      type: Number,
+      required: true
+    },
+    priceID: {
+      type: String,
       required: true
     }
   }
@@ -21,10 +29,6 @@ const orderSchema = new Schema(
       required: true
     },
     total: {
-      type: mongoose.Decimal128,
-      required: true
-    },
-    note: {
       type: String,
       required: true
     },

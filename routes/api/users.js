@@ -2,6 +2,7 @@ const express = require("express");
 const Router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const mailer = require("nodemailer");
 
 const keys = require("../../config/keys");
 
@@ -26,9 +27,9 @@ Router.post("/register", (req, res) => {
       } else {
         const newUser = new User(
           {
-            name: req.body.name,
             email: req.body.email,
-            password: req.body.password
+            password: req.body.password,
+            key: Math.floor(Math.random() * (1000000 - 100000) + 100000)
           }
         );
 
@@ -39,9 +40,23 @@ Router.post("/register", (req, res) => {
             }
 
             newUser.password = hash;
+            console.log(newUser._id.toString());
             newUser
               .save()
-              .then(() => res.status(200).json({message: "Account created."}))
+              .then(async () => {
+                let transporter = mailer.createTransport(keys.mailConfig);
+                let info = await transporter.sendMail({
+                  from: "'DSara Burger' <admin@dsara.com>",
+                  to: newUser.email,
+                  subject: "Verify Account",
+                  html: `<span>Activate your account <a href="${keys.domain}/api/users/verify?id=${newUser._id.toString()}&key=${newUser.key}">here</a>.</span>`
+                });
+
+                console.log("Message sent: %s", info.messageId);
+                console.log("Preview URL: %s", mailer.getTestMessageUrl(info));
+
+                res.status(200).json({message: "Account created. Please check your email for activation link."});
+              })
               .catch(err => console.log(err));
           });
         });
@@ -49,20 +64,20 @@ Router.post("/register", (req, res) => {
     });
 });
 
-Router.post("/verify", (req, res) => {
-  const email = req.body.email;
-  const key = req.body.key;
+Router.get("/verify", (req, res) => {
+  const id = req.query.id;
+  const key = req.query.key;
 
-  User.findOne({email}).then(user => {
-    if (user.key == key) {
+  User.findById(id).then(user => {
+    if (user.key == key && user.active == false) {
       user.key = undefined;
       user.active = true;
       user
         .save()
-        .then(() => res.status(200).json({message: "Account verified."}))
+        .then(() => res.status(200).send("Account verified."))
         .catch(err => console.log(err));
     } else {
-      res.status(400).json({message: "Invalid key."});
+      res.status(400).send("Bad session.");
     }
   });
 });
@@ -79,14 +94,17 @@ Router.post("/login", (req, res) => {
 
   User.findOne({email}).then(user => {
     if (!user) {
-      return res.status(404).json({emailnotfound: "Email not found"});
+      return res.status(404).json({message: "Email not found"});
+    }
+
+    if (!user.active) {
+      return res.status(404).json({message: "Activate the account via email first."});
     }
 
     bcrypt.compare(password, user.password).then(isMatch => {
       if (isMatch) {
         const payload = {
-          id: user.id,
-          name: user.name
+          id: user.id
         };
 
         jwt.sign(
@@ -106,7 +124,7 @@ Router.post("/login", (req, res) => {
       } else {
         return res
           .status(400)
-          .json({wrongcredential: "Wrong credentials."});
+          .json({message: "Wrong credentials."});
       }
     });
   });
@@ -119,7 +137,7 @@ Router.get("/profile", checkAuth, (req, res) => {
       if (user) {
         return res.status(200).json(user);
       } else {
-        return res.status(404).json({usernotfound: "User not found"});
+        return res.status(404).json({message: "User not found"});
       }
     });
 });

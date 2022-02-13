@@ -8,7 +8,11 @@ const itemSchema = new Schema(
       required: true
     },
     price: {
-      type: mongoose.Decimal128,
+      type: String,
+      required: true
+    },
+    priceID: {
+      type: String,
       required: true
     }
   }

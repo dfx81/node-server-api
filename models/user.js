@@ -3,10 +3,6 @@ const Schema = mongoose.Schema;
 
 const userSchema = new Schema(
   {
-    name: {
-      type: String,
-      required: true
-    },
     email: {
       type: String,
       required: true
@@ -18,7 +14,11 @@ const userSchema = new Schema(
     active: {
       type: Boolean,
       required: true,
-      default: true
+      default: false
+    },
+    key: {
+      type: Number,
+      required: false
     }
   }
 );
